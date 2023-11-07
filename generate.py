@@ -23,10 +23,6 @@ id_document_types = [
     "id_card"
 ]
 
-# PESEL
-def generate_pesel():
-    random.randint()
-
 # DEPARTMENT
 departments = {
     "Architecture": "Department of Architecture is focused on architectural design and theory.",
@@ -368,19 +364,17 @@ def choose_nationality():
 algorithms = [
     {
         "name": "Algorithm for IT majors",
-        "factor": 1.0,
     },
     {
         "name": "Algorithm for non-IT majors",
-        "factor": 0.8,
     },
     {
-        "name": "Algorithm for candidates with disabilities",
-        "factor": 1.2,
+        "name": "Algorithm for geodesy majors",
     }
 ]
-algorithms_data = [(name, factor) for name, factor in algorithms]
-algorithms_query = "INSERT INTO scoring_algorithms (name, factor) VALUES (%s, %s)"
+
+algorithms_data = [name for name in algorithms]
+algorithms_query = "INSERT INTO major_algorithms (name) VALUES (%s)"
 cur.executemany(algorithms_query, algorithms_data)
 
 # SUBJECTS
@@ -394,14 +388,105 @@ subject_names = [
     "Literature",
     "Art",
     "Economics",
-    "Geography",
+    "Geography"
 ]
 
 subjects_data = [(name,) for name in subject_names]
 subjects_query = "INSERT INTO subjects (pk_name) VALUES (%s)"
 cur.executemany(subjects_query, subjects_data)
 
+# SUBJECTS MENTIONED IN ALGORITHM
+subjects_mentioned_in_algorithm = [
+    {
+        "fk_subject": "Mathematics",
+        "fk_algorithm": "Algorithm for IT majors",
+        "factor": 2.5
+    },
+    {
+        "fk_subject": "Computer Science",
+        "fk_algorithm": "Algorithm for IT majors",
+        "factor": 2.5
+    },
+    {
+        "fk_subject": "Physics",
+        "fk_algorithm": "Algorithm for IT majors",
+        "factor": 2.5
+    },
+    {
+        "fk_subject": "Mathematics",
+        "fk_algorithm": "Algorithm for non-IT majors",
+        "factor": 2.5
+    },
+    {
+        "fk_subject": "Physics",
+        "fk_algorithm": "Algorithm for non-IT majors",
+        "factor": 2.5
+    },
+    {
+        "fk_subject": "Literature",
+        "fk_algorithm": "Algorithm for non-IT majors",
+        "factor": 0.1
+    },
+    {
+        "fk_subject": "Literature",
+        "fk_algorithm": "Algorithm for IT majors",
+        "factor": 0.1
+    },
+    {
+        "fk_subject": "Literature",
+        "fk_algorithm": "Algorithm for geodesy majors",
+        "factor": 0.1
+    },
+    {
+        "fk_subject": "Geography",
+        "fk_algorithm": "Algorithm for geodesy majors",
+        "factor": 2.5
+    },
+    {
+        "fk_subject": "Mathematics",
+        "fk_algorithm": "Algorithm for geodesy majors",
+        "factor": 2.5
+    },
+    {
+        "fk_subject": "Physics",
+        "fk_algorithm": "Algorithm for IT majors",
+        "factor": 2.5
+    }
+]
 
 subjects_mentioned_in_algorithm_data = [(fk_subject, fk_algorithm, factor) for fk_subject, fk_algorithm, factor in subjects_mentioned_in_algorithm]
 subjects_mentioned_in_algorithm_query = "INSERT INTO subjects_mentioned_in_algorithm (fk_subject, fk_algorithm, factor) VALUES (%s, %s, %s)"
 cur.executemany(subjects_mentioned_in_algorithm_query, subjects_mentioned_in_algorithm_data)
+
+# RECRUITMENT_WORKER
+
+
+# RECRUITMENT_APPLICATIONS
+def recruitment_applications_generator():
+    candidates_query = "SELECT pk_id FROM candidates"
+    cur.execute(candidates_query)
+    candidates_id = cur.fetchone()
+    major_query = "SELECT pk_id FROM majors"
+    cur.execute(major_query)
+    major_id = cur.fetchone()
+    numbers_of_applications = len(candidates_id) * 3
+    applications = []
+    year = [y for y in range(2018, 2024)]
+    rounds = ["FIRST", "SECOND", "THIRD"]
+    for i in range(numbers_of_applications):
+        applications.append(
+            (random.choice(major_id),
+             random.choice(candidates_id),
+             random.choice(year),
+             random.choice(rounds))
+        )
+    applications_query = "INSERT INTO exams (fk_major, fk_candidate) VALUES (%s, %s)"
+    cur.executemany(applications_query, applications)
+
+
+recruitment_applications_generator()
+
+
+conn.commit()
+cur.close()
+conn.close()
