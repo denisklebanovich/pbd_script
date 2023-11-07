@@ -1,11 +1,16 @@
 import random
 import string
 
+import faker
 import psycopg2 as pg
 from faker import Faker
 from random_pesel import RandomPESEL
 
 fake = Faker()
+
+# TODO: recruitment_exemption_document_types
+# TODO: recruitment_workers, recruitment_workers_majors
+# TODO: document_exempting_from_fees_types
 
 # Connect to an existing database
 conn = pg.connect("dbname=recruitment user=postgres port=5433 password=admin")
@@ -363,7 +368,7 @@ def choose_nationality():
                             weights=[0.2, 0.8]))["name"]
 
 
-# SCORING ALGORITHMS
+# MAJOR ALGORITHMS
 algorithms = [
     {
         "name": "Algorithm for IT majors",
