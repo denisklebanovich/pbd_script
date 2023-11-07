@@ -1,10 +1,6 @@
 import random
-import string
-
-import faker
 import psycopg2 as pg
 from faker import Faker
-from random_pesel import RandomPESEL
 
 fake = Faker()
 
