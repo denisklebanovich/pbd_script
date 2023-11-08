@@ -4,9 +4,8 @@ from faker import Faker
 
 fake = Faker()
 
-# TODO: recruitment_exemption_document_types
-# TODO: recruitment_workers, recruitment_workers_majors
-# TODO: document_exempting_from_fees_types
+# TODO: recruitment_exemption_document_types - I think its done in candidates.py
+# TODO: document_exempting_from_fees_types - I think its done in candidates.py
 
 # Connect to an existing database
 conn = pg.connect("dbname=recruitment user=postgres port=5433 password=admin")
