@@ -1,11 +1,12 @@
 import random
 import psycopg2 as pg
 from faker import Faker
+from random_pesel import RandomPESEL
 
 fake = Faker()
 
-# TODO: recruitment_exemption_document_types - I think its done in candidates.py
-# TODO: document_exempting_from_fees_types - I think its done in candidates.py
+# TODO: recruitment_exemption_document_types
+# TODO: document_exempting_from_fees_types
 
 # Connect to an existing database
 conn = pg.connect("dbname=recruitment user=postgres port=5433 password=admin")
@@ -16,11 +17,20 @@ thresholds_data = [
     (random.randint(1, 10), random.randint(1, 10)) for _ in range(10)
 ]
 
-# ID_DOCUMENT_TYPE
-id_document_types = [
-    "passport",
-    "id_card"
-]
+cur.execute("INSERT INTO id_document_types (pk_name) VALUES (%s)", ("passport",))
+cur.execute("INSERT INTO id_document_types (pk_name) VALUES (%s)", ("id_card",))
+
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("disability_certificate",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_first_degree",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_second_degree",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_third_degree",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_first_degree_of_music_school",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_first_degree_of_art_school",))
+
+cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)", ("disability_certificate",))
+cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_first_degree",))
+cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_second_degree",))
+
 
 # DEPARTMENT
 departments = {
@@ -133,6 +143,15 @@ majors_by_department = {
     ]
 }
 
+
+# MAJOR ALGORITHMS
+algorithms = ["Algorithm for IT majors", "Algorithm for non-IT majors", "Algorithm for geodesy majors"]
+algorithms_query = "INSERT INTO major_algorithms (pk_name) VALUES (%s)"
+cur.executemany(algorithms_query, [(algorithm,) for algorithm in algorithms])
+
+
+cur.execute("SELECT pk_name FROM major_algorithms")
+MAJOR_ALGORITHMS = cur.fetchall()
 # Generate data for the "departments" table
 departments_data = [(name, description) for name, description in departments.items()]
 departments_query = "INSERT INTO departments (name, description) VALUES (%s, %s) RETURNING pk_number, name"
@@ -140,10 +159,9 @@ for department in departments_data:
     cur.execute(departments_query, department)
     department_id, department_name = cur.fetchone()
     majors = majors_by_department[department_name]
-    majors_data = [(major["name"], major["description"], random.randint(50, 180), department_id) for major in majors]
-    majors_query = "INSERT INTO majors (nazwa, description, number_of_places, fk_department) VALUES (%s, %s, %s, %s)"
-    for major in majors_data:
-        cur.execute(majors_query, major)
+    majors_data = [(major["name"], major["description"], random.randint(50, 180), department_id,random.choice(MAJOR_ALGORITHMS)) for major in majors]
+    majors_query = "INSERT INTO majors (nazwa, description, number_of_places, fk_department,fk_algorithm) VALUES (%s, %s, %s, %s, %s)"
+    cur.executemany(majors_query, majors_data)
 
 # EXAM TYPES
 exam_types = {
@@ -165,18 +183,19 @@ exam_types = {
 }
 
 # Generate data for the "exam_types" table
-exam_types_data = [(name, minimum_score, maximum_score, multiplier) for name, (minimum_score, maximum_score, multiplier) in exam_types.items()]
+exam_types_data = []
+for name, data in exam_types.items():
+    exam_types_data.append((name, data["minimum_score"], data["maximum_score"], data["multiplier"]))
 exam_types_query = "INSERT INTO exam_types (pk_name, minimum_points_score, maximum_points_score, multiplier) VALUES (%s, %s, %s, %s)"
 cur.executemany(exam_types_query, exam_types_data)
 
+cur.execute("SELECT pk_id FROM majors")
+MAJORS = cur.fetchall()
+
 # Thresholds
 def generate_thresholds():
-    majors = majors_by_department.keys()
     thresholds_data = {}
-    for m in majors:
-        major_id_query = "SELECT pk_number FROM majors WHERE nazwa = %s"
-        cur.execute(major_id_query, (m,))
-        major_id = cur.fetchone()[0]
+    for major_id in MAJORS:
         for year in range(2018, 2023):
             previous_year_thresholds = [(major_id, year)] if (major_id, year) in thresholds_data else round(random.uniform(20, 500), 1)
             first_round = min(max(previous_year_thresholds+round(random.uniform(-50, 50), 1), 20.0), 500.0)
@@ -220,17 +239,17 @@ majors_with_courses = {
         {'Power Systems': 'Design and analysis of power systems'},
         {'Control Systems': 'Study of control engineering'},
     ],
-    'Microsystem Electronics and Photonics': [
+    'Microsystem Electronics': [
         {'Microsystem Electronics': 'Study of microelectronic devices'},
         {'Photonics': 'Study of the generation and manipulation of light'},
     ],
-    'Computer Science and Management': [
+    'Computer Science': [
         {'Computer Science': 'Study of algorithms and programming'},
         {'Information Systems': 'Design and management of information systems'},
         {'Management': 'Study of organizational management principles'},
         {'Cybersecurity': 'Study of securing computer systems and networks'},
     ],
-    'Geodesy and Geoinformatics': [
+    'Geodesy': [
         {'Geodesy': 'Study of Earth\'s geometry and physical properties'},
         {'Geoinformatics': 'Application of information science to spatial data'},
     ],
@@ -238,12 +257,12 @@ majors_with_courses = {
         {'Environmental Engineering': 'Environmental impact assessment'},
         {'Ecological Engineering': 'Study of ecological systems and environmental protection'},
     ],
-    'Fundamental Problems of Technology': [
+    'Materials Science': [
         {'Materials Science': 'Study of materials and their properties'},
         {'Nanotechnology': 'Study of manipulation of matter on an atomic, molecular, and supramolecular scale'},
         {'Biotechnology': 'Application of biological systems for technological advancements'},
     ],
-    'Pure and Applied Mathematics': [
+    'Pure Mathematics': [
         {'Pure Mathematics': 'Study of abstract structures and relationships'},
         {'Applied Mathematics': 'Application of mathematical methods to solve real-world problems'},
     ],
@@ -252,7 +271,7 @@ majors_with_courses = {
         {'Mechatronics': 'Integration of mechanical engineering with electronics and computer science'},
         {'Automotive Engineering': 'Design and production of automotive systems'},
     ],
-    'Machines and Transport': [
+    'Machine Construction': [
         {'Machine Construction': 'Design and manufacturing of machines'},
         {'Transportation Engineering': 'Study of transportation systems and infrastructure'},
     ],
@@ -261,12 +280,12 @@ majors_with_courses = {
         {'Metallurgy': 'Study of metals and alloys'},
         {'Ceramic Engineering': 'Study of ceramic materials and their applications'},
     ],
-    'Mechanical and Power Engineering': [
+    'Renewable Energy': [
         {'Power Engineering': 'Study of energy production and utilization'},
         {'Renewable Energy': 'Study of sustainable energy sources'},
         {'Fluid Mechanics': 'Study of fluid behavior'},
     ],
-    'Technology and Engineering': [
+    'Robotics': [
         {'Engineering Technology': 'Application of engineering principles to technology'},
         {'Robotics': 'Study of designing and building robots'},
     ],
@@ -283,22 +302,18 @@ majors_with_courses = {
 
 def set_courses():
     for major_name, courses in majors_with_courses.items():
-        major_id_query = "SELECT pk_number FROM majors WHERE nazwa = %s"
-        cur.execute(major_id_query, (major,))
+        major_id_query = "SELECT pk_id FROM majors WHERE nazwa = %s"
+        cur.execute(major_id_query, (major_name,))
         major_id = cur.fetchone()[0]
         if not major_id:
             continue
-        for course_name, course_description in courses.items():
+        for course in courses:
+            course_name = list(course.keys())[0]
+            course_description = list(course.values())[0]
             course_query = "INSERT INTO courses (name, description, fk_major) VALUES (%s, %s, %s)"
             cur.execute(course_query, (course_name, course_description, major_id))
 
 set_courses()
-
-# ID_DOCUMENT_TYPES
-def add_document_types():
-    for type in id_document_types:
-        query = "INSERT INTO id_document_types (type) VALUES (%s)"
-        cur.execute(query, (type,))
 
 # NATIONALITIES
 european_nationalities = [
@@ -347,7 +362,9 @@ european_nationalities = [
     {"name": "Japanese", "studies_fee_free": False},
 ]
 
-nationalities_data = [(name, studies_fee_free) for name, studies_fee_free in european_nationalities]
+nationalities_data = []
+for nationality in european_nationalities:
+    nationalities_data.append((nationality["name"], nationality["studies_fee_free"]))
 nationalities_query = "INSERT INTO nationalities (pk_name, studies_fee_free) VALUES (%s, %s)"
 cur.executemany(nationalities_query, nationalities_data)
 
@@ -359,22 +376,6 @@ def choose_nationality():
                             weights=[0.2, 0.8]))["name"]
 
 
-# MAJOR ALGORITHMS
-algorithms = [
-    {
-        "name": "Algorithm for IT majors",
-    },
-    {
-        "name": "Algorithm for non-IT majors",
-    },
-    {
-        "name": "Algorithm for geodesy majors",
-    }
-]
-
-algorithms_data = [name for name in algorithms]
-algorithms_query = "INSERT INTO major_algorithms (name) VALUES (%s)"
-cur.executemany(algorithms_query, algorithms_data)
 
 # SUBJECTS
 subject_names = [
@@ -453,37 +454,228 @@ subjects_mentioned_in_algorithm = [
     }
 ]
 
-subjects_mentioned_in_algorithm_data = [(fk_subject, fk_algorithm, factor) for fk_subject, fk_algorithm, factor in subjects_mentioned_in_algorithm]
+subjects_mentioned_in_algorithm_data = []
+for subject in subjects_mentioned_in_algorithm:
+    subjects_mentioned_in_algorithm_data.append((subject["fk_subject"], subject["fk_algorithm"], subject["factor"]))
 subjects_mentioned_in_algorithm_query = "INSERT INTO subjects_mentioned_in_algorithm (fk_subject, fk_algorithm, factor) VALUES (%s, %s, %s)"
 cur.executemany(subjects_mentioned_in_algorithm_query, subjects_mentioned_in_algorithm_data)
 
-# RECRUITMENT_WORKER
+
+fake = Faker()
+fake_pesel = RandomPESEL()
+
+# CONSTS
+cur.execute("SELECT pk_name FROM nationalities")
+NATIONALITIES = cur.fetchall()
+
+cur.execute("SELECT pk_name FROM exam_types")
+EXAM_TYPES = cur.fetchall()
+
+cur.execute("SELECT pk_name FROM subjects")
+SUBJECTS = cur.fetchall()
+
+cur.execute("SELECT pk_name FROM recruitment_exemption_document_types")
+RECRUITMENT_EXEMPTION_DOCUMENT_TYPES = cur.fetchall()
+
+cur.execute("SELECT pk_name FROM document_exempting_from_fees_types")
+DOCUMENT_EXEMPTING_FROM_FEES_TYPES = cur.fetchall()
+
+
+universities = [
+    "University of Warsaw",
+    "Jagiellonian University",
+    "Warsaw University of Technology",
+    "Adam Mickiewicz University in Poznań",
+    "AGH University of Science and Technology",
+    "Wrocław University of Science and Technology",
+    "University of Wrocław",
+    "Gdańsk University of Technology",
+    "University of Gdańsk",
+    "Silesian University of Technology",
+    "Nicolaus Copernicus University in Toruń",
+    "Poznań University of Technology",
+    "University of Łódź",
+    "Warsaw School of Economics",
+    "Medical University of Warsaw",
+    "University of Silesia in Katowice",
+    "Poznań University of Life Sciences",
+    "Wrocław University of Environmental and Life Sciences",
+    "Lublin University of Technology",
+    "Cracow University of Economics",
+    "Warsaw University of Life Sciences",
+    "University of Warmia and Mazury in Olsztyn",
+    "Kazimierz Wielki University in Bydgoszcz",
+    "University of Rzeszów",
+    "Częstochowa University of Technology",
+    "Pomeranian Medical University in Szczecin",
+    "University of Zielona Góra",
+    "Opole University of Technology",
+    "Cardinal Stefan Wyszyński University in Warsaw",
+    "University of Opole",
+    "Poznań University of Economics and Business",
+    "Jan Kochanowski University in Kielce",
+    "Kielce University of Technology",
+    "University of Information Technology and Management in Rzeszów",
+    "Maria Curie-Skłodowska University in Lublin",
+    "Bialystok University of Technology",
+    "University of Bielsko-Biała",
+    "Nicolaus Copernicus University Collegium Medicum in Bydgoszcz",
+    "University of Agriculture in Krakow",
+    "University of Social Sciences and Humanities in Warsaw",
+    "Lodz University of Technology",
+    "Lomza State University of Applied Sciences",
+    "Warsaw University of Social Sciences and Humanities",
+    "Warsaw Medical University",
+    "University of Lower Silesia in Wrocław",
+    "WSB University in Wrocław",
+    "MIT",
+    "Stanford University",
+    "Harvard University",
+    "University of Oxford",
+    "University of Cambridge",
+    "California Institute of Technology",
+    "ETH Zurich",
+    "University of Chicago",
+]
+
+def generate_candidate_account():
+    login = fake.unique.pystr_format(string_format='pwr??????', letters='1234567890')
+    cur.execute("SELECT * FROM accounts WHERE pk_login = %s", (login,))
+    password = fake.password()
+    cur.execute("INSERT INTO accounts (pk_login, password) VALUES (%s, %s)", (login, password))
+    return login
+
+
+def get_document_type_with_nationality():
+    is_polish = random.choices([True, False], weights=[0.9, 0.1])[0]
+    if is_polish:
+        return "id_card", "Polish"
+    else:
+        return "passport", random.choice(NATIONALITIES)
+
+def generate_exam_results(candidate_id):
+    document_id = fake.pystr(min_chars=6, max_chars=20)
+    date = fake.date_between(start_date='-5y', end_date='today')
+    exam_type = random.choice(EXAM_TYPES)
+    cur.execute("INSERT INTO exams (document_id, fk_candidate, date, fk_exam_type) VALUES (%s, %s, %s, %s) RETURNING pk_id",
+                (document_id, candidate_id, date, exam_type))
+    exam_id = cur.fetchone()[0]
+    generate_subject_results(exam_id)
+
+def generate_subject_results(exam_id):
+    subject_len = random.randint(1, 5)
+    subjects = random.choices(SUBJECTS, k=subject_len)
+    for subject in subjects:
+        points = random.randint(0, 100)
+        cur.execute("INSERT INTO subject_results (fk_subject, fk_exam, points) VALUES (%s, %s, %s)",
+                    (subject, exam_id, points))
+
+
+def generate_dyploma(candidate_id):
+    university = random.choice(universities)
+    avg_mark = round(random.uniform(3.0, 5.0), 3)
+    thesis_mark = random.choices([3.0, 3.5, 4.0, 4.5, 5.0], weights=[0.1, 0.2, 0.3, 0.2, 0.15])[0]
+    cur.execute("INSERT INTO first_degree_diplomas (fk_candidate, university_name, average_mark, thesis_mark) VALUES (%s, %s, %s, %s)",
+                (candidate_id, university, avg_mark, thesis_mark))
+
+def generate_recrutation_exemption_document(candidate_id):
+    document_type = random.choice(RECRUITMENT_EXEMPTION_DOCUMENT_TYPES)
+    cur.execute("INSERT INTO recruitment_exemption_documents (fk_candidate, fk_type) VALUES (%s, %s)",
+                (candidate_id, document_type))
+
+def generate_fee_exempting_document(candidate_id):
+    document_type = random.choice(DOCUMENT_EXEMPTING_FROM_FEES_TYPES)
+    date_of_issue = fake.date_between(start_date='-2y', end_date='today')
+    document_id = fake.pystr(min_chars=6, max_chars=20)
+    cur.execute("INSERT INTO documents_exempting_from_fees (fk_type, fk_candidate, date_of_issue, document_id) VALUES (%s, %s, %s, %s)",
+                (document_type, candidate_id, date_of_issue, document_id))
+
+
+
+
+def generate_candidate():
+    account_id = generate_candidate_account()
+    name = fake.first_name()
+    surname = fake.last_name()
+    id_document_number = fake.passport_number()
+    document_type_id, nationality = get_document_type_with_nationality()
+    pesel = None
+    if nationality == "Polish":
+        pesel = fake_pesel.generate()
+    cur.execute("INSERT INTO candidates (fk_account, name, surname, id_document_number, fk_id_document_type,fk_nationality, pesel) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING pk_id",
+                (account_id, name, surname, id_document_number, document_type_id, nationality, pesel))
+    candidate_id = cur.fetchone()[0]
+
+    generate_recruitment_applications(candidate_id)
+
+    if nationality != "Polish":
+        has_document_exempting_from_fees = random.choices([True, False], weights=[0.05, 0.95])[0]
+        if has_document_exempting_from_fees:
+            generate_fee_exempting_document(candidate_id)
+    is_bachelor = random.choices([True, False], weights=[0.8, 0.2])[0]
+    if is_bachelor:
+        has_exam_results = random.choices([True, False], weights=[0.95, 0.05])[0]
+        if has_exam_results:
+            generate_exam_results(candidate_id)
+    else:
+        has_dyploma = random.choices([True, False], weights=[0.95, 0.05])[0]
+        if has_dyploma:
+            generate_dyploma(candidate_id)
+
+    has_recruitment_exemption_document = random.choices([True, False], weights=[0.02, 0.98])[0]
+
+    if has_recruitment_exemption_document:
+        generate_recrutation_exemption_document(candidate_id)
 
 
 # RECRUITMENT_APPLICATIONS
-def recruitment_applications_generator():
-    candidates_query = "SELECT pk_id FROM candidates"
-    cur.execute(candidates_query)
-    candidates_id = cur.fetchone()
-    major_query = "SELECT pk_id FROM majors"
-    cur.execute(major_query)
-    major_id = cur.fetchone()
-    numbers_of_applications = len(candidates_id) * 3
-    applications = []
-    year = [y for y in range(2018, 2024)]
-    rounds = ["FIRST", "SECOND", "THIRD"]
+def generate_recruitment_applications(candidate_id):
+    numbers_of_applications = random.randint(1, 5)
     for i in range(numbers_of_applications):
-        applications.append(
-            (random.choice(major_id),
-             random.choice(candidates_id),
-             random.choice(year),
-             random.choice(rounds))
-        )
-    applications_query = "INSERT INTO exams (fk_major, fk_candidate) VALUES (%s, %s)"
-    cur.executemany(applications_query, applications)
+        year = random.choice([2017,2018,2019, 2020, 2021,2022,2023])
+        round = random.choice(["FIRST", "SECOND", "THIRD"])
+        major = random.choice(MAJORS)
+        cur.execute("INSERT INTO recruitment_applications (fk_major, fk_candidate, year,round) VALUES (%s, %s, %s, %s)",
+                    (major, candidate_id, year, round))
 
 
-recruitment_applications_generator()
+def generate_worker_account():
+    login = fake.unique.pystr_format(string_format='prac_pwr??????', letters='1234567890')
+    password = fake.password()
+    cur.execute("INSERT INTO accounts (pk_login, password) VALUES (%s, %s)", (login, password))
+    return login
+
+workers = []
+def generate_worker():
+    name = fake.first_name()
+    surname = fake.last_name()
+    phone_number = fake.phone_number()
+    mail = fake.email()
+    fk_account = generate_worker_account()
+    worker_query = "INSERT INTO recruitment_workers (name, surname, phone_number, mail, fk_account) VALUES (%s, %s, %s, %s, %s) RETURNING pk_id"
+    cur.execute(
+        worker_query,
+        (name, surname, phone_number, mail, fk_account))
+    workers.append(cur.fetchone()[0])
+
+def generate_worker_for_major():
+    for major in MAJORS:
+        worker_number = random.randint(1, 5)
+        workers_for_major = random.choices(workers, k=worker_number)
+        for worker in workers_for_major:
+            cur.execute("INSERT INTO recruitment_workers_majors (fk_recruitment_worker, fk_major) VALUES (%s, %s)",
+                        (worker, major[0]))
+
+
+for i in range(200):
+    generate_worker()
+
+generate_worker_for_major()
+
+for i in range(20000):
+    generate_candidate()
+
+
 
 
 conn.commit()

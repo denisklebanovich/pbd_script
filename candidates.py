@@ -119,7 +119,7 @@ def generate_dyploma(candidate_id):
     university = random.choice(universities)
     avg_mark = round(random.uniform(2.0, 5.0), 3)
     thesis_mark = random.choices([2.0, 3.0, 3.5, 4.0, 4.5, 5.0], weights=[0.05, 0.1, 0.2, 0.3, 0.2, 0.15])[0]
-    cur.execute("INSERT INTO first_degree_dyplomas (fk_candidate, university, avg_mark, thesis_mark) VALUES (%s, %s, %s, %s)",
+    cur.execute("INSERT INTO first_degree_diplomas (fk_candidate, university_name, average_mark, thesis_mark) VALUES (%s, %s, %s, %s)",
                 (candidate_id, university, avg_mark, thesis_mark))
 
 def generate_recrutation_exemption_document(candidate_id):
@@ -168,7 +168,19 @@ def generate_candidate():
     if has_recruitment_exemption_document:
         generate_recrutation_exemption_document(candidate_id)
 
+cur.execute("SELECT pk_id FROM majors")
+MAJORS = cur.fetchall()
 
-generate_candidate()
+# RECRUITMENT_APPLICATIONS
+def generate_recruitment_applications(candidate_id):
+    numbers_of_applications = random.randint(1, 5)
+    for i in range(numbers_of_applications):
+        year = random.choice([2017,2018,2019, 2020, 2021,2022,2023])
+        round = random.choice(["FIRST", "SECOND", "THIRD"])
+        major = random.choice(MAJORS)
+        cur.execute("INSERT INTO recruitment_applications (fk_major, fk_candidate, year,round) VALUES (%s, %s, %s, %s)",
+                    (major, candidate_id, year, round))
+
+
 conn.commit()
 cur.close()

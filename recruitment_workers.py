@@ -29,20 +29,16 @@ def generate_worker():
         (name, surname, phone_number, mail, fk_account))
     workers.append(cur.fetchone()[0])
 
+cur.execute("SELECT pk_id FROM majors")
+MAJORS = cur.fetchall()
+
 def generate_worker_for_major():
-    major_id_query = "SELECT pk_number FROM majors"
-    cur.execute(major_id_query)
-    major_id = cur.fetchone()
-    for major in major_id:
-        workers_for_major_query = "INSERT INTO recruitment_workers_majors (fk_recruitment_worker, fk_major) VALUES (%s, %s)"
-        cur.execute(
-            workers_for_major_query,
-            (workers[random.randint(0, len(workers))], major)
-        )
+    for major in MAJORS:
+        worker_number = random.randint(1, 5)
+        workers_for_major = random.choices(workers, k=worker_number)
+        for worker in workers_for_major:
+            cur.execute("INSERT INTO recruitment_workers_majors (fk_recruitment_worker, fk_major) VALUES (%s, %s)",
+                        (worker, major[0]))
 
-
-for i in range(40):
-    generate_worker()
-generate_worker_for_major()
 conn.commit()
 cur.close()
