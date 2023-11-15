@@ -532,7 +532,7 @@ majors_with_courses = {
     ]
 }
 
-cource_descrition = {
+course_descriptions = {
 
     'Machine Design': 'Learn the principles and techniques of designing machines and mechanical systems.',
     'Manufacturing Processes': 'Study the various processes used in manufacturing, including machining, forming, and assembly.',
@@ -749,7 +749,7 @@ def set_courses():
 
         for course in courses:
             course_name = course
-            course_description = cource_descrition[course_name]
+            course_description = course_descriptions[course_name]
             course_query = "INSERT INTO courses (name, description, fk_major) VALUES (%s, %s, %s)"
             cur.execute(course_query, (course_name, course_description, major_id))
 
@@ -1087,14 +1087,14 @@ def generate_exam_results(candidate_id):
     cur.execute("INSERT INTO exams (document_id, fk_candidate, date, fk_exam_type) VALUES (%s, %s, %s, %s) RETURNING pk_id",
                 (document_id, candidate_id, date, exam_type))
     exam_id = cur.fetchone()[0]
-    generate_subject_results(exam_id)
+    generate_subject_results(exam_id, exam_type)
 
 
-def generate_subject_results(exam_id):
+def generate_subject_results(exam_id, exam_type):
     subject_len = random.randint(1, 5)
     subjects = random.choices(SUBJECTS, k=subject_len)
     for subject in subjects:
-        points = random.randint(0, 100)
+        points = random.randint(exam_types[exam_type[0]]["minimum_score"], exam_types[exam_type[0]]["maximum_score"])
         cur.execute("INSERT INTO subject_results (fk_subject, fk_exam, points) VALUES (%s, %s, %s)",
                     (subject, exam_id, points))
 
