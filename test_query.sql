@@ -1,0 +1,12 @@
+-- SELECT can.name,
+--        can.surname,
+--        et.minimum_points_score,
+--        et.maximum_points_score,
+--        et.multiplier,
+--        sr.points,
+--        sr.fk_subject
+--
+-- FROM candidates can
+-- INNER JOIN exams e on can.pk_id = e.fk_candidate
+-- INNER JOIN exam_types et on e.fk_exam_type = et.pk_name
+-- INNER JOIN subject_results sr on e.pk_id = sr.fk_exam
