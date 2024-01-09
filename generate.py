@@ -6,7 +6,7 @@ from random_pesel import RandomPESEL
 fake = Faker()
 
 # Connect to an existing database
-conn = pg.connect("dbname=recruitment user=postgres port=5430 password=password")
+conn = pg.connect("dbname=recruitment user=postgres port=5440 password=password")
 cur = conn.cursor()
 
 
