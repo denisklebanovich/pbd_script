@@ -43,8 +43,8 @@ queries = ['CREATE (major:Majors {name: "Applied Computer Science", description:
 
 with GraphDatabase.driver(URI, auth=AUTH) as driver:
     driver.verify_connectivity()
-    for query in queries:
-        driver.execute_query(
-            query_=query,
-            database_='neo4j'
-        )
+    # for query in queries:
+    #     driver.execute_query(
+    #         query_=query,
+    #         database_='neo4j'
+    #     )
