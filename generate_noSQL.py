@@ -1,8 +1,8 @@
 from random import random
-import psycopg2 as pg
+
 from faker import Faker
-from random_pesel import RandomPESEL
 from neo4j import GraphDatabase
+from random_pesel import RandomPESEL
 
 fake = Faker()
 
@@ -12,21 +12,32 @@ AUTH = ("neo4j", "1Ob6tEcO0946BsXr9ggRQmVe6834TS68qJikhcTUWJM")
 driver = GraphDatabase.driver(URI, auth=AUTH)
 driver.verify_connectivity()
 
+driver.execute_query(
+    query_="CREATE (newNode:YourLabel {propertyName: 'propertyValue'})RETURN ID(newNode) AS nodeId, newNode",
+    database_='neo4j')
 
-driver.execute_query(query_="", database_='neo4j')
+cur.execute("INSERT INTO id_document_types (pk_name) VALUES (%s)", ("passport",))
 cur.execute("INSERT INTO id_document_types (pk_name) VALUES (%s)", ("id_card",))
-
+passport = driver.execute_query(query_='Create (id:IdDocumentTypes {name:"passport"})\nRETURN ID(id)',
+                                database_='neo4j')
+driver.execute_query(query_='Create (id:IdDocumentTypes {name:"id_card"})', database_='neo4j')
 cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("disability_certificate",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_first_degree",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_second_degree",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_third_degree",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_first_degree_of_music_school",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_first_degree_of_art_school",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
+            ("certificate_of_completion_of_the_first_degree",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
+            ("certificate_of_completion_of_the_second_degree",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
+            ("certificate_of_completion_of_the_third_degree",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
+            ("certificate_of_completion_of_the_first_degree_of_music_school",))
+cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
+            ("certificate_of_completion_of_the_first_degree_of_art_school",))
 
 cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)", ("disability_certificate",))
-cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_first_degree",))
-cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)", ("certificate_of_completion_of_the_second_degree",))
-
+cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)",
+            ("certificate_of_completion_of_the_first_degree",))
+cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)",
+            ("certificate_of_completion_of_the_second_degree",))
 
 # DEPARTMENT
 departments = {
@@ -49,7 +60,6 @@ departments = {
     "Applied Informatics": "Department of Applied Informatics deals with practical computer science.",
     "Organization and Management": "This department is involved in the study of organizations and management.",
 }
-
 
 # MAJORS
 majors_by_department = {
@@ -147,7 +157,6 @@ algorithms = ["Algorithm for IT majors", "Algorithm for non-IT majors", "Algorit
 algorithms_query = "INSERT INTO major_algorithms (pk_name) VALUES (%s)"
 cur.executemany(algorithms_query, [(algorithm,) for algorithm in algorithms])
 
-
 cur.execute("SELECT pk_name FROM major_algorithms")
 MAJOR_ALGORITHMS = cur.fetchall()
 # Generate data for the "departments" table
@@ -161,7 +170,6 @@ for department in departments_data:
                     random.choices(MAJOR_ALGORITHMS, weights=[4, 10, 4, 1, 2, 1])[0]) for major in majors]
     majors_query = "INSERT INTO majors (name, description, number_of_places, fk_department, fk_algorithm) VALUES (%s, %s, %s, %s, %s)"
     cur.executemany(majors_query, majors_data)
-
 
 # EXAM TYPES
 exam_types = {
@@ -198,15 +206,16 @@ def generate_thresholds():
     thresholds_data = {}
     for major_id in MAJORS:
         for year in range(2018, 2023):
-            previous_year_thresholds = [(major_id, year)] if (major_id, year) in thresholds_data else round(random.uniform(20, 500), 1)
-            first_round = min(max(previous_year_thresholds+round(random.uniform(-50, 50), 1), 20.0), 500.0)
-            second_round = min(max(first_round+round(random.uniform(-50, 50), 1), 20.0), 500.0)
-            third_round = min(max(second_round+round(random.uniform(-50, 50), 1), 20.0), 500.0)
+            previous_year_thresholds = [(major_id, year)] if (major_id, year) in thresholds_data else round(
+                random.uniform(20, 500), 1)
+            first_round = min(max(previous_year_thresholds + round(random.uniform(-50, 50), 1), 20.0), 500.0)
+            second_round = min(max(first_round + round(random.uniform(-50, 50), 1), 20.0), 500.0)
+            third_round = min(max(second_round + round(random.uniform(-50, 50), 1), 20.0), 500.0)
             thresholds_data.update({
-                (major_id, year) : {
-                                    "round_1": first_round,
-                                    "round_2": second_round,
-                                    "round_3": third_round}
+                (major_id, year): {
+                    "round_1": first_round,
+                    "round_2": second_round,
+                    "round_3": third_round}
             })
     return thresholds_data
 
@@ -216,7 +225,6 @@ for key, value in thresholds.items():
     major_id, year = key
     add_thresholds_query = "INSERT INTO thresholds (fk_major, recrutation_year, round_1, round_2, round_3) VALUES (%s, %s, %s, %s, %s)"
     cur.execute(add_thresholds_query, (major_id, year, value["round_1"], value["round_2"], value["round_3"]))
-
 
 # COURSE
 majors_with_courses = {
@@ -751,6 +759,7 @@ def set_courses():
             course_query = "INSERT INTO courses (name, description, fk_major) VALUES (%s, %s, %s)"
             cur.execute(course_query, (course_name, course_description, major_id))
 
+
 set_courses()
 
 # NATIONALITIES
@@ -758,7 +767,7 @@ european_nationalities = [
     {"name": "Albanian", "studies_fee_free": False},
     {"name": "Austrian", "studies_fee_free": True},
     {"name": "Belgian", "studies_fee_free": True},
-    {"name": "Belarusian","studies_fee_free": False},
+    {"name": "Belarusian", "studies_fee_free": False},
     {"name": "Bosnian", "studies_fee_free": False},
     {"name": "Bulgarian", "studies_fee_free": True},
     {"name": "Croatian", "studies_fee_free": True},
@@ -811,8 +820,7 @@ cur.executemany(nationalities_query, nationalities_data)
 def choose_nationality():
     polish_vs_european = [european_nationalities, [{"name": "Polish"}]]
     return random.choice(random.choices(population=polish_vs_european,
-                            weights=[0.2, 0.8]))["name"]
-
+                                        weights=[0.2, 0.8]))["name"]
 
 
 # SUBJECTS
@@ -983,7 +991,6 @@ for subject in subjects_mentioned_in_algorithm:
 subjects_mentioned_in_algorithm_query = "INSERT INTO subjects_mentioned_in_algorithm (fk_subject, fk_algorithm, factor) VALUES (%s, %s, %s)"
 cur.executemany(subjects_mentioned_in_algorithm_query, subjects_mentioned_in_algorithm_data)
 
-
 fake = Faker()
 fake_pesel = RandomPESEL()
 
@@ -1002,7 +1009,6 @@ RECRUITMENT_EXEMPTION_DOCUMENT_TYPES = cur.fetchall()
 
 cur.execute("SELECT pk_name FROM document_exempting_from_fees_types")
 DOCUMENT_EXEMPTING_FROM_FEES_TYPES = cur.fetchall()
-
 
 universities = [
     "University of Warsaw",
@@ -1082,8 +1088,9 @@ def generate_exam_results(candidate_id):
     document_id = fake.pystr(min_chars=6, max_chars=20)
     date = fake.date_between(start_date='-5y', end_date='today')
     exam_type = random.choice(EXAM_TYPES)
-    cur.execute("INSERT INTO exams (document_id, fk_candidate, date, fk_exam_type) VALUES (%s, %s, %s, %s) RETURNING pk_id",
-                (document_id, candidate_id, date, exam_type))
+    cur.execute(
+        "INSERT INTO exams (document_id, fk_candidate, date, fk_exam_type) VALUES (%s, %s, %s, %s) RETURNING pk_id",
+        (document_id, candidate_id, date, exam_type))
     exam_id = cur.fetchone()[0]
     generate_subject_results(exam_id, exam_type)
 
@@ -1101,8 +1108,9 @@ def generate_dyploma(candidate_id):
     university = random.choice(universities)
     avg_mark = round(random.uniform(3.0, 5.0), 3)
     thesis_mark = random.choices([3.0, 3.5, 4.0, 4.5, 5.0], weights=[0.1, 0.2, 0.3, 0.2, 0.15])[0]
-    cur.execute("INSERT INTO first_degree_diplomas (fk_candidate, university_name, average_mark, thesis_mark) VALUES (%s, %s, %s, %s)",
-                (candidate_id, university, avg_mark, thesis_mark))
+    cur.execute(
+        "INSERT INTO first_degree_diplomas (fk_candidate, university_name, average_mark, thesis_mark) VALUES (%s, %s, %s, %s)",
+        (candidate_id, university, avg_mark, thesis_mark))
 
 
 def generate_recrutation_exemption_document(candidate_id):
@@ -1115,8 +1123,9 @@ def generate_fee_exempting_document(candidate_id):
     document_type = random.choice(DOCUMENT_EXEMPTING_FROM_FEES_TYPES)
     date_of_issue = fake.date_between(start_date='-2y', end_date='today')
     document_id = fake.pystr(min_chars=6, max_chars=20)
-    cur.execute("INSERT INTO documents_exempting_from_fees (fk_type, fk_candidate, date_of_issue, document_id) VALUES (%s, %s, %s, %s)",
-                (document_type, candidate_id, date_of_issue, document_id))
+    cur.execute(
+        "INSERT INTO documents_exempting_from_fees (fk_type, fk_candidate, date_of_issue, document_id) VALUES (%s, %s, %s, %s)",
+        (document_type, candidate_id, date_of_issue, document_id))
 
 
 def generate_candidate():
@@ -1128,8 +1137,9 @@ def generate_candidate():
     pesel = None
     if nationality == "Polish":
         pesel = fake_pesel.generate()
-    cur.execute("INSERT INTO candidates (fk_account, name, surname, id_document_number, fk_id_document_type,fk_nationality, pesel) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING pk_id",
-                (account_id, name, surname, id_document_number, document_type_id, nationality, pesel))
+    cur.execute(
+        "INSERT INTO candidates (fk_account, name, surname, id_document_number, fk_id_document_type,fk_nationality, pesel) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING pk_id",
+        (account_id, name, surname, id_document_number, document_type_id, nationality, pesel))
     candidate_id = cur.fetchone()[0]
 
     generate_recruitment_applications(candidate_id)
@@ -1158,7 +1168,7 @@ def generate_candidate():
 def generate_recruitment_applications(candidate_id):
     numbers_of_applications = random.randint(1, 5)
     for i in range(numbers_of_applications):
-        year = random.choice([2017,2018,2019, 2020, 2021,2022,2023])
+        year = random.choice([2017, 2018, 2019, 2020, 2021, 2022, 2023])
         round = random.choice(["FIRST", "SECOND", "THIRD"])
         major = random.choice(MAJORS)
         cur.execute("INSERT INTO recruitment_applications (fk_major, fk_candidate, year,round) VALUES (%s, %s, %s, %s)",
@@ -1173,6 +1183,7 @@ def generate_worker_account():
 
 
 workers = []
+
 
 def generate_worker():
     name = fake.first_name()
@@ -1203,7 +1214,6 @@ generate_worker_for_major()
 
 for i in range(20000):
     generate_candidate()
-
 
 with GraphDatabase.driver(URI, auth=AUTH) as driver:
     driver.verify_connectivity()
