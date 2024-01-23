@@ -41,8 +41,8 @@ def get_relationship_with_attributes(first_id, second_id, relationship_name, rel
     ])
 
 
-passport = extract_id(driver.execute_query(query_='Create (id:IdDocumentTypes {name:"passport"})\nRETURN ID(n)'))
-id_card = extract_id(driver.execute_query(query_='Create (id:IdDocumentTypes {name:"id_card"})\nRETURN ID(n)'))
+passport = extract_id(driver.execute_query(query_='Create (n:IdDocumentTypes {name:"passport"})\nRETURN ID(n)'))
+id_card = extract_id(driver.execute_query(query_='Create (n:IdDocumentTypes {name:"id_card"})\nRETURN ID(n)'))
 IdDocumentTypes = [passport, id_card]
 
 RecruitmentExemptionDocumentTypesNames = ["disability_certificate", "certificate_of_completion_of_the_first_degree", "certificate_of_completion_of_the_second_degree",
@@ -174,7 +174,7 @@ algorithms = ["Algorithm for IT majors", "Algorithm for non-IT majors", "Algorit
 
 MajorAlgorithms = []
 for algorithm in algorithms:
-    MajorAlgorithms.append(extract_id(driver.execute_query('CREATE (n:MajorAlgorithms {name: %s})\nRETURN ID(n)'%(algorithm))))
+    MajorAlgorithms.append(extract_id(driver.execute_query('CREATE (n:MajorAlgorithms {name: "%s"})\nRETURN ID(n)'%(algorithm))))
 
 
 departments_data = [(name, description) for name, description in departments.items()]
@@ -218,7 +218,7 @@ ExamTypes = []
 for name, data in exam_types.items():
     ExamTypes.append(extract_id(driver.execute_query(
         'CREATE (n:ExamTypes {name: "%s", multiplier: %s, minimum_points_score: %s, maximum_points_score: %s})\nRETURN ID(n)'
-            %(name, data["name"], data["minimum_score"], data["maximum_score"])
+            %(name, data["multiplier"], data["minimum_score"], data["maximum_score"])
     )))
 
 # Thresholds
