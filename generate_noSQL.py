@@ -774,7 +774,7 @@ course_descriptions = {
 Courses = []
 for major_name, courses in majors_with_courses.items():
     major_id = extract_id(driver.execute_query(
-        'MATCH major\nWHERE major.name = "%s"\nRETURN ID(major)'
+        'MATCH (major)\nWHERE major.name = "%s"\nRETURN ID(major)'
         % major_name
     ))
     if not major_id:
@@ -783,11 +783,12 @@ for major_name, courses in majors_with_courses.items():
     for course in courses:
         course_name = course
         course_description = course_descriptions[course_name]
-        course_query = "INSERT INTO courses (name, description, fk_major) VALUES (%s, %s, %s)"
-        Courses.append(extract_id(driver.execute_query(
-            'MATCH n\n WHERE ID(n) = %s \nCREATE n.name = %s\nRETURN ID(n)'
-        )))
-        cur.execute(course_query, (course_name, course_description, major_id))
+        course_id = extract_id(driver.execute_query(
+            'MATCH (major)\n WHERE ID(major) = %s \nCREATE (n:Courses {name: "%s", description: "%s"})\nRETURN ID(n)'
+            % (major_id, course_name, course_description)
+        ))
+        Courses.append(course_id)
+        get_two_way_relationship(course_id, major_id, "COURSES", "MAJORS")
 
 
 # NATIONALITIES
@@ -837,11 +838,12 @@ european_nationalities = [
     {"name": "Japanese", "studies_fee_free": False},
 ]
 
-nationalities_data = []
+Nationalities = []
 for nationality in european_nationalities:
-    nationalities_data.append((nationality["name"], nationality["studies_fee_free"]))
-nationalities_query = "INSERT INTO nationalities (pk_name, studies_fee_free) VALUES (%s, %s)"
-cur.executemany(nationalities_query, nationalities_data)
+    Nationalities.append(extract_id(driver.execute_query(
+            'CREATE (n:Nationalities {name: "%s", studies_fee_free: %s})\nRETURN ID(n)'
+            % (nationality["name"], nationality["studies_fee_free"])
+        )))
 
 
 # CANDIDATE
@@ -870,9 +872,12 @@ subject_names = [
     "Foreign languages"
 ]
 
-subjects_data = [(name,) for name in subject_names]
-subjects_query = "INSERT INTO subjects (pk_name) VALUES (%s)"
-cur.executemany(subjects_query, subjects_data)
+Subjects = []
+for subject_name in subject_names:
+    Subjects.append(extract_id(driver.execute_query(
+        'CREATE (n:Subjects {name: "%s"})\nRETURN ID(n)'
+        % subject_name
+    )))
 
 # SUBJECTS MENTIONED IN ALGORITHM
 subjects_mentioned_in_algorithm = [
@@ -1013,30 +1018,19 @@ subjects_mentioned_in_algorithm = [
     }
 ]
 
-subjects_mentioned_in_algorithm_data = []
-for subject in subjects_mentioned_in_algorithm:
-    subjects_mentioned_in_algorithm_data.append((subject["fk_subject"], subject["fk_algorithm"], subject["factor"]))
-subjects_mentioned_in_algorithm_query = "INSERT INTO subjects_mentioned_in_algorithm (fk_subject, fk_algorithm, factor) VALUES (%s, %s, %s)"
-cur.executemany(subjects_mentioned_in_algorithm_query, subjects_mentioned_in_algorithm_data)
+
+# SUBJECTS_MENTIONED_IN_ALGORITHM
+for subject_algorithm_factor in subjects_mentioned_in_algorithm:
+    driver.execute_query(
+        'MATCH (subject:Subjects)\n WHERE subject.name = %s\n'
+        'MATCH (a:MajorAlgorithms)\n WHERE a.name = %s\n'
+        'CREATE (n:SUBJECTS_MENTIONED_IN_ALGORITHM {factor: "%s"})'
+        % (subject_algorithm_factor["fk_subject"], subject_algorithm_factor["fk_algorithm"], subject_algorithm_factor["factor"])
+    )
+
 #TODO:---------------------
 fake = Faker()
 fake_pesel = RandomPESEL()
-
-# CONSTS
-cur.execute("SELECT pk_name FROM nationalities")
-NATIONALITIES = cur.fetchall()
-
-cur.execute("SELECT pk_name FROM exam_types")
-EXAM_TYPES = cur.fetchall()
-
-cur.execute("SELECT pk_name FROM subjects")
-SUBJECTS = cur.fetchall()
-
-cur.execute("SELECT pk_name FROM recruitment_exemption_document_types")
-RECRUITMENT_EXEMPTION_DOCUMENT_TYPES = cur.fetchall()
-
-cur.execute("SELECT pk_name FROM document_exempting_from_fees_types")
-DOCUMENT_EXEMPTING_FROM_FEES_TYPES = cur.fetchall()
 
 universities = [
     "University of Warsaw",
