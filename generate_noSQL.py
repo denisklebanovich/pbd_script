@@ -1102,43 +1102,41 @@ def get_document_type_with_nationality():
     if is_polish:
         return "id_card", "Polish"
     else:
-        return "passport", random.choice(NATIONALITIES)
+        return "passport", random.choice(Nationalities)
 
 
 def generate_exam_results(candidate_id):
     document_id = fake.pystr(min_chars=6, max_chars=20)
     date = fake.date_between(start_date='-5y', end_date='today')
-    exam_type = random.choice(EXAM_TYPES)
-    query = ""
-    cur.execute(
-        "INSERT INTO exams (document_id, fk_candidate, date, fk_exam_type) VALUES (%s, %s, %s, %s) RETURNING pk_id",
-        (document_id, candidate_id, date, exam_type))
-    exam_id = cur.fetchone()[0]
+    exam_type = random.choice(ExamTypes)
+    query = 'Create (e:Exams {documentId: "%s", date: date("%s")})'%(document_id, date)
+    exam_id = extract_id(driver.execute_query(query_=query))
     generate_subject_results(exam_id, exam_type)
 
 
 def generate_subject_results(exam_id, exam_type):
     subject_len = random.randint(1, 5)
-    subjects = random.choices(SUBJECTS, k=subject_len)
+    subjects = random.choices(Subjects, k=subject_len)
     for subject in subjects:
         points = random.randint(exam_types[exam_type[0]]["minimum_score"], exam_types[exam_type[0]]["maximum_score"])
-        cur.execute("INSERT INTO subject_results (fk_subject, fk_exam, points) VALUES (%s, %s, %s)",
-                    (subject, exam_id, points))
+        query = get_relationship_with_attributes(exam_id, subject, "SUBJECTS_RESULTS", "{points: %s}" % points)
+        driver.execute_query(query_=query)
 
 
 def generate_dyploma(candidate_id):
     university = random.choice(universities)
     avg_mark = round(random.uniform(3.0, 5.0), 3)
     thesis_mark = random.choices([3.0, 3.5, 4.0, 4.5, 5.0], weights=[0.1, 0.2, 0.3, 0.2, 0.15])[0]
-    cur.execute(
-        "INSERT INTO first_degree_diplomas (fk_candidate, university_name, average_mark, thesis_mark) VALUES (%s, %s, %s, %s)",
-        (candidate_id, university, avg_mark, thesis_mark))
+    query = 'Create (f:FirstDegreeDiplomas {universityName: "%s", averageMark: %s, thesisMark: %s})'%(university, avg_mark, thesis_mark)
+    diplom_id = extract_id(driver.execute_query(query_=query))
+    relation_query = get_two_way_relationship(candidate_id, diplom_id, "CANDIDATE", "FIRST_DEGREE_DIPLOMAS")
+    driver.execute_query(query_=relation_query)
 
 
 def generate_recrutation_exemption_document(candidate_id):
-    document_type = random.choice(RECRUITMENT_EXEMPTION_DOCUMENT_TYPES)
-    cur.execute("INSERT INTO recruitment_exemption_documents (fk_candidate, fk_type) VALUES (%s, %s)",
-                (candidate_id, document_type))
+    document_type = random.choice(RecruitmentExemptionDocumentTypes)
+    query = get_two_way_relationship(candidate_id, document_type, "CANDIDATE", "DOCUMENTS_TYPE")
+    driver.execute_query(query_=query)
 
 
 def generate_fee_exempting_document(candidate_id):
@@ -1161,11 +1159,9 @@ def generate_candidate():
     pesel = None
     if nationality == "Polish":
         pesel = fake_pesel.generate()
-    cur.execute(
-        "INSERT INTO candidates (fk_account, name, surname, id_document_number, fk_id_document_type,fk_nationality, pesel) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING pk_id",
-        (account_id, name, surname, id_document_number, document_type_id, nationality, pese
-    query = '' % (year, round)
-    {} driver.execury(query_=query)
+    query = 'CREATE (candidate:Candidates {name: "%s", surname: "%s", id_document_number: "%s", pesel: "%s" })' % (name, surname, id_document_number, pesel)
+    candidate_id = driver.execute_query(query_=query)
+
     generate_recruitment_applications(candidate_id)
 
     if nationality != "Polish":
@@ -1196,7 +1192,8 @@ def generate_recruitment_applications(candidate_id):
         round = random.choice(["FIRST", "SECOND", "THIRD"])
         major = random.choice(majors)
         query = 'CREATE (recruitment_application: RecruitmentApplications {year: %s, round: %s})'%(year, round)
-        application_id = driver.execute_query(query_=query)  driver.execute_query(query_=
+        application_id = driver.execute_query(query_=query)
+        driver.execute_query(query_=
                              get_two_way_relationship(application_id, major, "RECRUITMENT_APPLICATIONS", "MAJORS"))
         driver.execute_query(query_=
                              get_two_way_relationship(application_id, candidate_id, "RECRUITMENT_APPLICATIONS", "CANDIDATE"))
