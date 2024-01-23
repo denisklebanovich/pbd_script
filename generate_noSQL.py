@@ -1,4 +1,4 @@
-from random import random
+import random
 
 from faker import Faker
 from neo4j import GraphDatabase
@@ -12,32 +12,49 @@ AUTH = ("neo4j", "1Ob6tEcO0946BsXr9ggRQmVe6834TS68qJikhcTUWJM")
 driver = GraphDatabase.driver(URI, auth=AUTH)
 driver.verify_connectivity()
 
-driver.execute_query(
-    query_="CREATE (newNode:YourLabel {propertyName: 'propertyValue'})RETURN ID(newNode) AS nodeId, newNode",
-    database_='neo4j')
+def extract_id(executed_query):
+    [result], _, [key] = executed_query
+    return result[key]
 
-cur.execute("INSERT INTO id_document_types (pk_name) VALUES (%s)", ("passport",))
-cur.execute("INSERT INTO id_document_types (pk_name) VALUES (%s)", ("id_card",))
-passport = driver.execute_query(query_='Create (id:IdDocumentTypes {name:"passport"})\nRETURN ID(id)',
-                                database_='neo4j')
-driver.execute_query(query_='Create (id:IdDocumentTypes {name:"id_card"})', database_='neo4j')
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)", ("disability_certificate",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
-            ("certificate_of_completion_of_the_first_degree",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
-            ("certificate_of_completion_of_the_second_degree",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
-            ("certificate_of_completion_of_the_third_degree",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
-            ("certificate_of_completion_of_the_first_degree_of_music_school",))
-cur.execute("INSERT INTO recruitment_exemption_document_types (pk_name) VALUES (%s)",
-            ("certificate_of_completion_of_the_first_degree_of_art_school",))
 
-cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)", ("disability_certificate",))
-cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)",
-            ("certificate_of_completion_of_the_first_degree",))
-cur.execute("INSERT INTO document_exempting_from_fees_types (pk_name) VALUES (%s)",
-            ("certificate_of_completion_of_the_second_degree",))
+def get_two_way_relationship(first_id, second_id, first_node_name, second_node_name):
+    return "\n".join([
+        f'Match (node)\n Where ID(node) = {first_id}',
+        f'Match (node2)\n Where ID(node2) = {second_id}',
+        f'Create (node)-[:{first_node_name}_{second_node_name}]->(node2)',
+        f'Create (node2)-[:{second_node_name}_{first_node_name}]->(node)'
+    ])
+
+def get_relationship_with_attributes(first_id, second_id, relationship_name, relations_attributes):
+    """
+    Create a relations with given attributes.
+    :param first_id: int
+    :param second_id: int
+    :param relationship_name: str
+    :param relations_attributes: str (in pattern {attr1: "attr1", attr2: "attr2"})
+    :return: None
+    """
+    return "\n".join([
+        f'Match (node)\n Where ID(node) = {first_id}',
+        f'Match (node2)\n Where ID(node2) = {second_id}',
+        'Create (node)-[:%s %s]->(node2)'%(relationship_name, relations_attributes)
+    ])
+
+
+passport = extract_id(driver.execute_query(query_='Create (id:IdDocumentTypes {name:"passport"})\nRETURN ID(n)'))
+id_card = extract_id(driver.execute_query(query_='Create (id:IdDocumentTypes {name:"id_card"})\nRETURN ID(n)'))
+IdDocumentTypes = [passport, id_card]
+
+RecruitmentExemptionDocumentTypesNames = ["disability_certificate", "certificate_of_completion_of_the_first_degree", "certificate_of_completion_of_the_second_degree",
+"certificate_of_completion_of_the_third_degree", "studium_talent"]
+RecruitmentExemptionDocumentTypes = []
+for name in RecruitmentExemptionDocumentTypesNames:
+    RecruitmentExemptionDocumentTypes.append(extract_id(driver.execute_query('CREATE (n:RecruitmentExemptionDocumentTypes {name: "%s"})\nRETURN ID(n)'%(name))))
+
+FeesExemptionDocumentTypesNames = ["disability_certificate", "certificate_of_completion_of_the_first_degree", "certificate_of_completion_of_the_second_degree"]
+FeesExemptionDocumentTypes = []
+for name in FeesExemptionDocumentTypesNames:
+    FeesExemptionDocumentTypes.append(extract_id(driver.execute_query('CREATE (n:FeesExemptionDocumentTypes {name: "%s"})\nRETURN ID(n)'%(name))))
 
 # DEPARTMENT
 departments = {
@@ -154,22 +171,29 @@ majors_by_department = {
 algorithms = ["Algorithm for IT majors", "Algorithm for non-IT majors", "Algorithm for geodesy majors",
               "Algorithm for humanities majors", "Algorithm for natural sciences majors",
               "Algorithms for language majors"]
-algorithms_query = "INSERT INTO major_algorithms (pk_name) VALUES (%s)"
-cur.executemany(algorithms_query, [(algorithm,) for algorithm in algorithms])
 
-cur.execute("SELECT pk_name FROM major_algorithms")
-MAJOR_ALGORITHMS = cur.fetchall()
-# Generate data for the "departments" table
+MajorAlgorithms = []
+for algorithm in algorithms:
+    MajorAlgorithms.append(extract_id(driver.execute_query('CREATE (n:MajorAlgorithms {name: %s})\nRETURN ID(n)'%(algorithm))))
+
+
 departments_data = [(name, description) for name, description in departments.items()]
 departments_query = "INSERT INTO departments (name, description) VALUES (%s, %s) RETURNING pk_number, name"
-for department in departments_data:
-    cur.execute(departments_query, department)
-    department_id, department_name = cur.fetchone()
-    majors = majors_by_department[department_name]
-    majors_data = [(major["name"], major["description"], random.randint(50, 180), department_id,
-                    random.choices(MAJOR_ALGORITHMS, weights=[4, 10, 4, 1, 2, 1])[0]) for major in majors]
-    majors_query = "INSERT INTO majors (name, description, number_of_places, fk_department, fk_algorithm) VALUES (%s, %s, %s, %s, %s)"
-    cur.executemany(majors_query, majors_data)
+
+Departments = []
+Majors = []
+for name, description in departments_data:
+    department_id = extract_id(driver.execute_query(
+        'CREATE (n:Departments {name: "%s", description: "%s"})\nRETURN ID(n)'%(name, description)))
+    Departments.append(department_id)
+    majors = majors_by_department[name]
+    for major in majors:
+        major_id = extract_id(driver.execute_query(
+            'CREATE (n:Majors {name: "%s", description: "%s", number_of_places: %s})\nRETURN ID(n)'%(name, description, random.randint(50, 180))
+        ))
+        Majors.append(major_id)
+        driver.execute_query(get_two_way_relationship(major_id, department_id, "MAJORS", "DEPARTMENTS"))
+        driver.execute_query(get_two_way_relationship(major_id, random.choices(MajorAlgorithms, weights=[4, 10, 4, 1, 2, 1])[0], "MAJORS", "MAJOR_ALGORITHMS"))
 
 # EXAM TYPES
 exam_types = {
@@ -190,21 +214,17 @@ exam_types = {
     }
 }
 
-# Generate data for the "exam_types" table
-exam_types_data = []
+ExamTypes = []
 for name, data in exam_types.items():
-    exam_types_data.append((name, data["minimum_score"], data["maximum_score"], data["multiplier"]))
-exam_types_query = "INSERT INTO exam_types (pk_name, minimum_points_score, maximum_points_score, multiplier) VALUES (%s, %s, %s, %s)"
-cur.executemany(exam_types_query, exam_types_data)
-
-cur.execute("SELECT pk_id FROM majors")
-MAJORS = cur.fetchall()
-
+    ExamTypes.append(extract_id(driver.execute_query(
+        'CREATE (n:ExamTypes {name: "%s", multiplier: %s, minimum_points_score: %s, maximum_points_score: %s})\nRETURN ID(n)'
+            %(name, data["name"], data["minimum_score"], data["maximum_score"])
+    )))
 
 # Thresholds
 def generate_thresholds():
     thresholds_data = {}
-    for major_id in MAJORS:
+    for major_id in Majors:
         for year in range(2018, 2023):
             previous_year_thresholds = [(major_id, year)] if (major_id, year) in thresholds_data else round(
                 random.uniform(20, 500), 1)
@@ -220,11 +240,17 @@ def generate_thresholds():
     return thresholds_data
 
 
+Thresholds = []
 thresholds = generate_thresholds()
 for key, value in thresholds.items():
     major_id, year = key
-    add_thresholds_query = "INSERT INTO thresholds (fk_major, recrutation_year, round_1, round_2, round_3) VALUES (%s, %s, %s, %s, %s)"
-    cur.execute(add_thresholds_query, (major_id, year, value["round_1"], value["round_2"], value["round_3"]))
+
+    thresholds_id = extract_id(driver.execute_query(
+        'CREATE (n:Thresholds {year: %s, round_1: %s, round_2: %s, round_3: %s})\nRETURN ID(n)'
+            %(year, value["round_1"], value["round_2"], value["round_3"])
+    ))
+    Thresholds.append(thresholds_id)
+    get_two_way_relationship(thresholds_id, major_id, "THRESHOLDS", "MAJOR")
 
 # COURSE
 majors_with_courses = {
@@ -745,22 +771,24 @@ course_descriptions = {
 }
 
 
-def set_courses():
-    for major_name, courses in majors_with_courses.items():
-        major_id_query = "SELECT pk_id FROM majors WHERE name = %s"
-        cur.execute(major_id_query, (major_name,))
-        major_id = cur.fetchone()[0]
-        if not major_id:
-            continue
+Courses = []
+for major_name, courses in majors_with_courses.items():
+    major_id = extract_id(driver.execute_query(
+        'MATCH major\nWHERE major.name = "%s"\nRETURN ID(major)'
+        % major_name
+    ))
+    if not major_id:
+        continue
 
-        for course in courses:
-            course_name = course
-            course_description = course_descriptions[course_name]
-            course_query = "INSERT INTO courses (name, description, fk_major) VALUES (%s, %s, %s)"
-            cur.execute(course_query, (course_name, course_description, major_id))
+    for course in courses:
+        course_name = course
+        course_description = course_descriptions[course_name]
+        course_query = "INSERT INTO courses (name, description, fk_major) VALUES (%s, %s, %s)"
+        Courses.append(extract_id(driver.execute_query(
+            'MATCH n\n WHERE ID(n) = %s \nCREATE n.name = %s\nRETURN ID(n)'
+        )))
+        cur.execute(course_query, (course_name, course_description, major_id))
 
-
-set_courses()
 
 # NATIONALITIES
 european_nationalities = [
@@ -990,7 +1018,7 @@ for subject in subjects_mentioned_in_algorithm:
     subjects_mentioned_in_algorithm_data.append((subject["fk_subject"], subject["fk_algorithm"], subject["factor"]))
 subjects_mentioned_in_algorithm_query = "INSERT INTO subjects_mentioned_in_algorithm (fk_subject, fk_algorithm, factor) VALUES (%s, %s, %s)"
 cur.executemany(subjects_mentioned_in_algorithm_query, subjects_mentioned_in_algorithm_data)
-
+#TODO:---------------------
 fake = Faker()
 fake_pesel = RandomPESEL()
 
@@ -1070,10 +1098,9 @@ universities = [
 
 def generate_candidate_account():
     login = fake.unique.pystr_format(string_format='pwr??????', letters='1234567890')
-    cur.execute("SELECT * FROM accounts WHERE pk_login = %s", (login,))
     password = fake.password()
-    cur.execute("INSERT INTO accounts (pk_login, password) VALUES (%s, %s)", (login, password))
-    return login
+    query = 'CREATE (account: Accounts {login: "%s", password: "%s"})\n RETURN ID(account)'%(login, password)
+    return extract_id(driver.execute_query(query_=query))
 
 
 def get_document_type_with_nationality():
@@ -1088,6 +1115,7 @@ def generate_exam_results(candidate_id):
     document_id = fake.pystr(min_chars=6, max_chars=20)
     date = fake.date_between(start_date='-5y', end_date='today')
     exam_type = random.choice(EXAM_TYPES)
+    query = ""
     cur.execute(
         "INSERT INTO exams (document_id, fk_candidate, date, fk_exam_type) VALUES (%s, %s, %s, %s) RETURNING pk_id",
         (document_id, candidate_id, date, exam_type))
@@ -1120,12 +1148,14 @@ def generate_recrutation_exemption_document(candidate_id):
 
 
 def generate_fee_exempting_document(candidate_id):
-    document_type = random.choice(DOCUMENT_EXEMPTING_FROM_FEES_TYPES)
+    document_type_id = random.choice(FeesExemptionDocumentTypes)
     date_of_issue = fake.date_between(start_date='-2y', end_date='today')
     document_id = fake.pystr(min_chars=6, max_chars=20)
-    cur.execute(
-        "INSERT INTO documents_exempting_from_fees (fk_type, fk_candidate, date_of_issue, document_id) VALUES (%s, %s, %s, %s)",
-        (document_type, candidate_id, date_of_issue, document_id))
+    query = get_relationship_with_attributes(candidate_id,
+                                             document_type_id,
+                                             "DocumentsExemptingFromFees",
+                                             '{documentId:"%s", date:date("%s")}'%(document_id, date_of_issue))
+    driver.execute_query(query_=query)
 
 
 def generate_candidate():
@@ -1139,9 +1169,9 @@ def generate_candidate():
         pesel = fake_pesel.generate()
     cur.execute(
         "INSERT INTO candidates (fk_account, name, surname, id_document_number, fk_id_document_type,fk_nationality, pesel) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING pk_id",
-        (account_id, name, surname, id_document_number, document_type_id, nationality, pesel))
-    candidate_id = cur.fetchone()[0]
-
+        (account_id, name, surname, id_document_number, document_type_id, nationality, pese
+    query = '' % (year, round)
+    {} driver.execury(query_=query)
     generate_recruitment_applications(candidate_id)
 
     if nationality != "Polish":
@@ -1170,41 +1200,44 @@ def generate_recruitment_applications(candidate_id):
     for i in range(numbers_of_applications):
         year = random.choice([2017, 2018, 2019, 2020, 2021, 2022, 2023])
         round = random.choice(["FIRST", "SECOND", "THIRD"])
-        major = random.choice(MAJORS)
-        cur.execute("INSERT INTO recruitment_applications (fk_major, fk_candidate, year,round) VALUES (%s, %s, %s, %s)",
-                    (major, candidate_id, year, round))
+        major = random.choice(majors)
+        query = 'CREATE (recruitment_application: RecruitmentApplications {year: %s, round: %s})'%(year, round)
+        application_id = driver.execute_query(query_=query)  driver.execute_query(query_=
+                             get_two_way_relationship(application_id, major, "RECRUITMENT_APPLICATIONS", "MAJORS"))
+        driver.execute_query(query_=
+                             get_two_way_relationship(application_id, candidate_id, "RECRUITMENT_APPLICATIONS", "CANDIDATE"))
 
 
 def generate_worker_account():
     login = fake.unique.pystr_format(string_format='prac_pwr??????', letters='1234567890')
     password = fake.password()
-    cur.execute("INSERT INTO accounts (pk_login, password) VALUES (%s, %s)", (login, password))
-    return login
-
+    query = 'CREATE (account: Accounts {login: "%s", password: "%s"})\n RETURN ID(account)'%(login, password)
+    return extract_id(driver.execute_query(query_=query))
 
 workers = []
-
 
 def generate_worker():
     name = fake.first_name()
     surname = fake.last_name()
     phone_number = fake.phone_number()
     mail = fake.email()
-    fk_account = generate_worker_account()
-    worker_query = "INSERT INTO recruitment_workers (name, surname, phone_number, mail, fk_account) VALUES (%s, %s, %s, %s, %s) RETURNING pk_id"
-    cur.execute(
-        worker_query,
-        (name, surname, phone_number, mail, fk_account))
-    workers.append({name: name, surname: surname})
-
+    account_id = generate_worker_account()
+    worker_id = extract_id(driver.execute_query(
+        query_='CREATE (recruitment_worker: RecruitmentWorkers {name: "%s", surname: "%s", phone_number: "%s", mail: "%s"})'%(name, surname, phone_number, mail))
+    )
+    driver.execute_query(query_=get_two_way_relationship(
+        worker_id, account_id, "RECRUITMENT_WORKERS", "ACCOUNTS")
+    )
+    workers.append(worker_id)
 
 def generate_worker_for_major():
-    for major in MAJORS:
+    for major in majors:
         worker_number = random.randint(1, 5)
         workers_for_major = random.choices(workers, k=worker_number)
         for worker in workers_for_major:
-            cur.execute("INSERT INTO recruitment_workers_majors (fk_recruitment_worker, fk_major) VALUES (%s, %s)",
-                        (worker, major[0]))
+            driver.execute_query(query_= get_two_way_relationship(
+                workers_for_major, major, "RECRUITMENT_WORKERS", "MAJORS")
+            )
 
 
 for i in range(200):

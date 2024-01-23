@@ -4,7 +4,7 @@ URI = "neo4j+s://f53af4cc.databases.neo4j.io"
 AUTH = ("neo4j", "1Ob6tEcO0946BsXr9ggRQmVe6834TS68qJikhcTUWJM")
 
 queries = ['CREATE (major:Majors {name: "Applied Computer Science", description: "The field allows students to develop new skills and acquire new knowledge on the broadly understood computer science and its various implementations in solving business or technical problems or in the computer game sector. Applied computer science is supplemented with training in physics and mathematics, basic entrepreneurship courses, as well as in social and professional issues in computer science. Much emphasis is also placed on soft skills, such as presentation skills and teamwork skills.", number_of_places: 170})',
-           'CREATE (course: Courses {code: "W04IST-SI0815G", name: "Database Design", description: "A class focusing on the design of relational and non-relational databases"})',
+           'CREATE (course: Courses {name: "Database Design", description: "A class focusing on the design of relational and non-relational databases"})',
            'CREATE (threshold: Thresholds {recrutation_year: 2023, points: 470.05, round_number: 1})',
            'CREATE (recruitment_worker: Recruitment_workers {name: "Stefan", surname: "Kowalski", phone_number: "135-123-312", mail: "stefan.kowalski@pracownik.pwr.edu.pl"})',
            'CREATE (account: Accounts {login: "pwr354275", password: "38thfj3d"})',
