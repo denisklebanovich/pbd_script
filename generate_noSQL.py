@@ -3,6 +3,7 @@ import random
 from faker import Faker
 from neo4j import GraphDatabase
 from random_pesel import RandomPESEL
+from logging import Logger
 
 fake = Faker()
 
@@ -252,6 +253,7 @@ for key, value in thresholds.items():
     Thresholds.append(thresholds_id)
     get_two_way_relationship(thresholds_id, major_id, "THRESHOLDS", "MAJOR")
 
+print("Thresholds added")
 # COURSE
 majors_with_courses = {
     'Architecture': [
@@ -879,6 +881,7 @@ for subject_name in subject_names:
         % subject_name
     )))
 
+print("SUBJECTS added")
 # SUBJECTS MENTIONED IN ALGORITHM
 subjects_mentioned_in_algorithm = [
     {
@@ -1028,7 +1031,6 @@ for subject_algorithm_factor in subjects_mentioned_in_algorithm:
         % (subject_algorithm_factor["fk_subject"], subject_algorithm_factor["fk_algorithm"], subject_algorithm_factor["factor"])
     )
 
-#TODO:---------------------
 fake = Faker()
 fake_pesel = RandomPESEL()
 
@@ -1090,6 +1092,7 @@ universities = [
 ]
 
 
+print("SUBJECTS_MENTIONED_IN_ALGORITHM added")
 def generate_candidate_account():
     login = fake.unique.pystr_format(string_format='pwr??????', letters='1234567890')
     password = fake.password()
@@ -1112,6 +1115,8 @@ def generate_exam_results(candidate_id):
     query = 'Create (e:Exams {documentId: "%s", date: date("%s")})'%(document_id, date)
     exam_id = extract_id(driver.execute_query(query_=query))
     generate_subject_results(exam_id, exam_type)
+    query2 = get_two_way_relationship(candidate_id, exam_id, "CANDIDATE", "EXAM")
+    driver.execute_query(query_=query2)
 
 
 def generate_subject_results(exam_id, exam_type):
@@ -1163,6 +1168,7 @@ def generate_candidate():
     candidate_id = driver.execute_query(query_=query)
 
     generate_recruitment_applications(candidate_id)
+    driver.execute_query(query_=get_two_way_relationship(account_id, candidate_id, "ACCOUNT", "CANDIDATE"))
 
     if nationality != "Polish":
         has_document_exempting_from_fees = random.choices([True, False], weights=[0.05, 0.95])[0]
@@ -1232,16 +1238,13 @@ def generate_worker_for_major():
 
 
 for i in range(200):
+    if i % 20 == 0:
+        print("WORKER added")
     generate_worker()
 
 generate_worker_for_major()
 
 for i in range(20000):
+    if i % 20 == 0:
+        print("CANDIDATE added")
     generate_candidate()
-
-with GraphDatabase.driver(URI, auth=AUTH) as driver:
-    driver.verify_connectivity()
-    driver.execute_query(
-        query_='Match (c:Candidates)',
-        database_='neo4j'
-    )
