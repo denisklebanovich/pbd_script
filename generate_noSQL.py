@@ -1165,7 +1165,7 @@ def generate_candidate():
     if nationality == "Polish":
         pesel = fake_pesel.generate()
     query = 'CREATE (candidate:Candidates {name: "%s", surname: "%s", id_document_number: "%s", pesel: "%s" })\n RETURN ID(candidate)' % (name, surname, id_document_number, pesel)
-    candidate_id = driver.execute_query(query_=query)
+    candidate_id = extract_id(driver.execute_query(query_=query))
 
     generate_recruitment_applications(candidate_id)
     driver.execute_query(query_=get_two_way_relationship(account_id, candidate_id, "ACCOUNT", "CANDIDATE"))
@@ -1196,7 +1196,7 @@ def generate_recruitment_applications(candidate_id):
     for i in range(numbers_of_applications):
         year = random.choice([2017, 2018, 2019, 2020, 2021, 2022, 2023])
         round = random.choice(["FIRST", "SECOND", "THIRD"])
-        major = random.choice(majors)
+        major = random.choice(Majors)
         query = 'CREATE (recruitment_application: RecruitmentApplications {year: %s, round: "%s"})\n RETURN ID(recruitment_application)'%(year, round)
         application_id = driver.execute_query(query_=query)
         driver.execute_query(query_=
@@ -1228,16 +1228,16 @@ def generate_worker():
     workers.append(worker_id)
 
 def generate_worker_for_major():
-    for major in majors:
+    for major in Majors:
         worker_number = random.randint(1, 5)
         workers_for_major = random.choices(workers, k=worker_number)
         for worker in workers_for_major:
-            driver.execute_query(query_= get_two_way_relationship(
+            driver.execute_query(query_=get_two_way_relationship(
                 worker, major, "RECRUITMENT_WORKERS", "MAJORS")
             )
 
 
-for i in range(200):
+for i in range(2):
     if i % 20 == 0:
         print("WORKER added")
     generate_worker()
