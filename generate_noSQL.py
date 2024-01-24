@@ -13,18 +13,33 @@ AUTH = ("neo4j", "1Ob6tEcO0946BsXr9ggRQmVe6834TS68qJikhcTUWJM")
 driver = GraphDatabase.driver(URI, auth=AUTH)
 driver.verify_connectivity()
 
+
 def extract_id(executed_query):
+    """
+    Gets nodes id from executed query result of type: "Create (n:Label {name:"name"})\nRETURN ID(n)"
+    :param executed_query: t.Any
+    :return: int
+    """
     [result], _, [key] = executed_query
     return result[key]
 
 
 def get_two_way_relationship(first_id, second_id, first_node_name, second_node_name):
+    """
+    Create a query which will add two relations between given nodes
+    :param first_id: int
+    :param second_id: int
+    :param first_node_name: str
+    :param second_node_name: str
+    :return: str
+    """
     return "\n".join([
         f'Match (node)\n Where ID(node) = {first_id}',
         f'Match (node2)\n Where ID(node2) = {second_id}',
         f'Create (node)-[:{first_node_name}_{second_node_name}]->(node2)',
         f'Create (node2)-[:{second_node_name}_{first_node_name}]->(node)'
     ])
+
 
 def get_relationship_with_attributes(first_id, second_id, relationship_name, relations_attributes):
     """
@@ -38,7 +53,7 @@ def get_relationship_with_attributes(first_id, second_id, relationship_name, rel
     return "\n".join([
         f'Match (node)\n Where ID(node) = {first_id}',
         f'Match (node2)\n Where ID(node2) = {second_id}',
-        'Create (node)-[:%s %s]->(node2)'%(relationship_name, relations_attributes)
+        'Create (node)-[:%s %s]->(node2)' % (relationship_name, relations_attributes)
     ])
 
 
@@ -46,16 +61,20 @@ passport = extract_id(driver.execute_query(query_='Create (n:IdDocumentTypes {na
 id_card = extract_id(driver.execute_query(query_='Create (n:IdDocumentTypes {name:"id_card"})\nRETURN ID(n)'))
 IdDocumentTypes = [passport, id_card]
 
-RecruitmentExemptionDocumentTypesNames = ["disability_certificate", "certificate_of_completion_of_the_first_degree", "certificate_of_completion_of_the_second_degree",
-"certificate_of_completion_of_the_third_degree", "studium_talent"]
+RecruitmentExemptionDocumentTypesNames = ["disability_certificate", "certificate_of_completion_of_the_first_degree",
+                                          "certificate_of_completion_of_the_second_degree",
+                                          "certificate_of_completion_of_the_third_degree", "studium_talent"]
 RecruitmentExemptionDocumentTypes = []
 for name in RecruitmentExemptionDocumentTypesNames:
-    RecruitmentExemptionDocumentTypes.append(extract_id(driver.execute_query('CREATE (n:RecruitmentExemptionDocumentTypes {name: "%s"})\nRETURN ID(n)'%(name))))
+    RecruitmentExemptionDocumentTypes.append(extract_id(
+        driver.execute_query('CREATE (n:RecruitmentExemptionDocumentTypes {name: "%s"})\nRETURN ID(n)' % (name))))
 
-FeesExemptionDocumentTypesNames = ["disability_certificate", "certificate_of_completion_of_the_first_degree", "certificate_of_completion_of_the_second_degree"]
+FeesExemptionDocumentTypesNames = ["disability_certificate", "certificate_of_completion_of_the_first_degree",
+                                   "certificate_of_completion_of_the_second_degree"]
 FeesExemptionDocumentTypes = []
 for name in FeesExemptionDocumentTypesNames:
-    FeesExemptionDocumentTypes.append(extract_id(driver.execute_query('CREATE (n:FeesExemptionDocumentTypes {name: "%s"})\nRETURN ID(n)'%(name))))
+    FeesExemptionDocumentTypes.append(
+        extract_id(driver.execute_query('CREATE (n:FeesExemptionDocumentTypes {name: "%s"})\nRETURN ID(n)' % (name))))
 
 # DEPARTMENT
 departments = {
@@ -175,8 +194,8 @@ algorithms = ["Algorithm for IT majors", "Algorithm for non-IT majors", "Algorit
 
 MajorAlgorithms = []
 for algorithm in algorithms:
-    MajorAlgorithms.append(extract_id(driver.execute_query('CREATE (n:MajorAlgorithms {name: "%s"})\nRETURN ID(n)'%(algorithm))))
-
+    MajorAlgorithms.append(
+        extract_id(driver.execute_query('CREATE (n:MajorAlgorithms {name: "%s"})\nRETURN ID(n)' % (algorithm))))
 
 departments_data = [(name, description) for name, description in departments.items()]
 departments_query = "INSERT INTO departments (name, description) VALUES (%s, %s) RETURNING pk_number, name"
@@ -185,16 +204,19 @@ Departments = []
 Majors = []
 for name, description in departments_data:
     department_id = extract_id(driver.execute_query(
-        'CREATE (n:Departments {name: "%s", description: "%s"})\nRETURN ID(n)'%(name, description)))
+        'CREATE (n:Departments {name: "%s", description: "%s"})\nRETURN ID(n)' % (name, description)))
     Departments.append(department_id)
     majors = majors_by_department[name]
     for major in majors:
         major_id = extract_id(driver.execute_query(
-            'CREATE (n:Majors {name: "%s", description: "%s", number_of_places: %s})\nRETURN ID(n)'%(major['name'], major['description'], random.randint(50, 180))
+            'CREATE (n:Majors {name: "%s", description: "%s", number_of_places: %s})\nRETURN ID(n)' % (
+            major['name'], major['description'], random.randint(50, 180))
         ))
         Majors.append(major_id)
         driver.execute_query(get_two_way_relationship(major_id, department_id, "MAJORS", "DEPARTMENTS"))
-        driver.execute_query(get_two_way_relationship(major_id, random.choices(MajorAlgorithms, weights=[4, 10, 4, 1, 2, 1])[0], "MAJORS", "MAJOR_ALGORITHMS"))
+        driver.execute_query(
+            get_two_way_relationship(major_id, random.choices(MajorAlgorithms, weights=[4, 10, 4, 1, 2, 1])[0],
+                                     "MAJORS", "MAJOR_ALGORITHMS"))
 
 # EXAM TYPES
 exam_types = {
@@ -215,12 +237,14 @@ exam_types = {
     }
 }
 
-ExamTypes = []
+exam_types_id_to_name = {}
 for name, data in exam_types.items():
-    ExamTypes.append(extract_id(driver.execute_query(
+    exam_type_id = (extract_id(driver.execute_query(
         'CREATE (n:ExamTypes {name: "%s", multiplier: %s, minimum_points_score: %s, maximum_points_score: %s})\nRETURN ID(n)'
-            %(name, data["multiplier"], data["minimum_score"], data["maximum_score"])
+        % (name, data["multiplier"], data["minimum_score"], data["maximum_score"])
     )))
+    exam_types_id_to_name.update({exam_type_id: name})
+
 
 # Thresholds
 def generate_thresholds():
@@ -248,7 +272,7 @@ for key, value in thresholds.items():
 
     thresholds_id = extract_id(driver.execute_query(
         'CREATE (n:Thresholds {year: %s, round_1: %s, round_2: %s, round_3: %s})\nRETURN ID(n)'
-            %(year, value["round_1"], value["round_2"], value["round_3"])
+        % (year, value["round_1"], value["round_2"], value["round_3"])
     ))
     Thresholds.append(thresholds_id)
     get_two_way_relationship(thresholds_id, major_id, "THRESHOLDS", "MAJOR")
@@ -772,7 +796,6 @@ course_descriptions = {
     'Sensors and Actuators': 'Explore the world of devices that sense and respond to the physical environment in this course.'
 }
 
-
 Courses = []
 for major_name, courses in majors_with_courses.items():
     major_id = extract_id(driver.execute_query(
@@ -791,7 +814,6 @@ for major_name, courses in majors_with_courses.items():
         ))
         Courses.append(course_id)
         get_two_way_relationship(course_id, major_id, "COURSES", "MAJORS")
-
 
 # NATIONALITIES
 european_nationalities = [
@@ -843,9 +865,9 @@ european_nationalities = [
 Nationalities = []
 for nationality in european_nationalities:
     Nationalities.append(extract_id(driver.execute_query(
-            'CREATE (n:Nationalities {name: "%s", studies_fee_free: %s})\nRETURN ID(n)'
-            % (nationality["name"], nationality["studies_fee_free"])
-        )))
+        'CREATE (n:Nationalities {name: "%s", studies_fee_free: %s})\nRETURN ID(n)'
+        % (nationality["name"], nationality["studies_fee_free"])
+    )))
 
 
 # CANDIDATE
@@ -1021,14 +1043,14 @@ subjects_mentioned_in_algorithm = [
     }
 ]
 
-
 # SUBJECTS_MENTIONED_IN_ALGORITHM
 for subject_algorithm_factor in subjects_mentioned_in_algorithm:
     driver.execute_query(
         'MATCH (subject:Subjects)\n WHERE subject.name = "%s"\n'
         'MATCH (a:MajorAlgorithms)\n WHERE a.name = "%s"\n'
         'CREATE (n:SUBJECTS_MENTIONED_IN_ALGORITHM {factor: %s})'
-        % (subject_algorithm_factor["fk_subject"], subject_algorithm_factor["fk_algorithm"], subject_algorithm_factor["factor"])
+        % (subject_algorithm_factor["fk_subject"], subject_algorithm_factor["fk_algorithm"],
+           subject_algorithm_factor["factor"])
     )
 
 fake = Faker()
@@ -1091,12 +1113,13 @@ universities = [
     "University of Chicago",
 ]
 
-
 print("SUBJECTS_MENTIONED_IN_ALGORITHM added")
+
+
 def generate_candidate_account():
     login = fake.unique.pystr_format(string_format='pwr??????', letters='1234567890')
     password = fake.password()
-    query = 'CREATE (account: Accounts {login: "%s", password: "%s"})\n RETURN ID(account)'%(login, password)
+    query = 'CREATE (account: Accounts {login: "%s", password: "%s"})\n RETURN ID(account)' % (login, password)
     return extract_id(driver.execute_query(query_=query))
 
 
@@ -1111,8 +1134,8 @@ def get_document_type_with_nationality():
 def generate_exam_results(candidate_id):
     document_id = fake.pystr(min_chars=6, max_chars=20)
     date = fake.date_between(start_date='-5y', end_date='today')
-    exam_type = random.choice(ExamTypes)
-    query = 'Create (e:Exams {documentId: "%s", date: date("%s")})\n RETURN ID(e)'%(document_id, date)
+    exam_type = random.choice(list(exam_types_id_to_name.keys()))
+    query = 'Create (e:Exams {documentId: "%s", date: date("%s")})\n RETURN ID(e)' % (document_id, date)
     exam_id = extract_id(driver.execute_query(query_=query))
     generate_subject_results(exam_id, exam_type)
     query2 = get_two_way_relationship(candidate_id, exam_id, "CANDIDATE", "EXAM")
@@ -1123,7 +1146,10 @@ def generate_subject_results(exam_id, exam_type):
     subject_len = random.randint(1, 5)
     subjects = random.choices(Subjects, k=subject_len)
     for subject in subjects:
-        points = random.randint(exam_types[exam_type[0]]["minimum_score"], exam_types[exam_type[0]]["maximum_score"])
+        points = random.randint(
+            exam_types[exam_types_id_to_name[exam_type]]["minimum_score"],
+            exam_types[exam_types_id_to_name[exam_type]]["maximum_score"]
+        )
         query = get_relationship_with_attributes(exam_id, subject, "SUBJECTS_RESULTS", "{points: %s}" % points)
         driver.execute_query(query_=query)
 
@@ -1132,7 +1158,8 @@ def generate_dyploma(candidate_id):
     university = random.choice(universities)
     avg_mark = round(random.uniform(3.0, 5.0), 3)
     thesis_mark = random.choices([3.0, 3.5, 4.0, 4.5, 5.0], weights=[0.1, 0.2, 0.3, 0.2, 0.15])[0]
-    query = 'Create (f:FirstDegreeDiplomas {universityName: "%s", averageMark: %s, thesisMark: %s})\n RETURN ID(f)'%(university, avg_mark, thesis_mark)
+    query = 'Create (f:FirstDegreeDiplomas {universityName: "%s", averageMark: %s, thesisMark: %s})\n RETURN ID(f)' % (
+    university, avg_mark, thesis_mark)
     diplom_id = extract_id(driver.execute_query(query_=query))
     relation_query = get_two_way_relationship(candidate_id, diplom_id, "CANDIDATE", "FIRST_DEGREE_DIPLOMAS")
     driver.execute_query(query_=relation_query)
@@ -1151,7 +1178,7 @@ def generate_fee_exempting_document(candidate_id):
     query = get_relationship_with_attributes(candidate_id,
                                              document_type_id,
                                              "DocumentsExemptingFromFees",
-                                             '{documentId:"%s", date:date("%s")}'%(document_id, date_of_issue))
+                                             '{documentId:"%s", date:date("%s")}' % (document_id, date_of_issue))
     driver.execute_query(query_=query)
 
 
@@ -1164,7 +1191,8 @@ def generate_candidate():
     pesel = None
     if nationality == "Polish":
         pesel = fake_pesel.generate()
-    query = 'CREATE (candidate:Candidates {name: "%s", surname: "%s", id_document_number: "%s", pesel: "%s" })\n RETURN ID(candidate)' % (name, surname, id_document_number, pesel)
+    query = 'CREATE (candidate:Candidates {name: "%s", surname: "%s", id_document_number: "%s", pesel: "%s" })\n RETURN ID(candidate)' % (
+    name, surname, id_document_number, pesel)
     candidate_id = extract_id(driver.execute_query(query_=query))
 
     generate_recruitment_applications(candidate_id)
@@ -1197,21 +1225,25 @@ def generate_recruitment_applications(candidate_id):
         year = random.choice([2017, 2018, 2019, 2020, 2021, 2022, 2023])
         round = random.choice(["FIRST", "SECOND", "THIRD"])
         major = random.choice(Majors)
-        query = 'CREATE (recruitment_application: RecruitmentApplications {year: %s, round: "%s"})\n RETURN ID(recruitment_application)'%(year, round)
-        application_id = driver.execute_query(query_=query)
+        query = 'CREATE (recruitment_application: RecruitmentApplications {year: %s, round: "%s"})\n RETURN ID(recruitment_application)' % (
+        year, round)
+        application_id = extract_id(driver.execute_query(query_=query))
         driver.execute_query(query_=
                              get_two_way_relationship(application_id, major, "RECRUITMENT_APPLICATIONS", "MAJORS"))
         driver.execute_query(query_=
-                             get_two_way_relationship(application_id, candidate_id, "RECRUITMENT_APPLICATIONS", "CANDIDATE"))
+                             get_two_way_relationship(application_id, candidate_id, "RECRUITMENT_APPLICATIONS",
+                                                      "CANDIDATE"))
 
 
 def generate_worker_account():
     login = fake.unique.pystr_format(string_format='prac_pwr??????', letters='1234567890')
     password = fake.password()
-    query = 'CREATE (account: Accounts {login: "%s", password: "%s"})\n RETURN ID(account)'%(login, password)
+    query = 'CREATE (account: Accounts {login: "%s", password: "%s"})\n RETURN ID(account)' % (login, password)
     return extract_id(driver.execute_query(query_=query))
 
+
 workers = []
+
 
 def generate_worker():
     name = fake.first_name()
@@ -1220,12 +1252,14 @@ def generate_worker():
     mail = fake.email()
     account_id = generate_worker_account()
     worker_id = extract_id(driver.execute_query(
-        query_='CREATE (recruitment_worker: RecruitmentWorkers {name: "%s", surname: "%s", phone_number: "%s", mail: "%s"})\n RETURN ID(recruitment_worker)'%(name, surname, phone_number, mail))
+        query_='CREATE (recruitment_worker: RecruitmentWorkers {name: "%s", surname: "%s", phone_number: "%s", mail: "%s"})\n RETURN ID(recruitment_worker)' % (
+        name, surname, phone_number, mail))
     )
     driver.execute_query(query_=get_two_way_relationship(
         worker_id, account_id, "RECRUITMENT_WORKERS", "ACCOUNTS")
     )
     workers.append(worker_id)
+
 
 def generate_worker_for_major():
     for major in Majors:
@@ -1237,14 +1271,14 @@ def generate_worker_for_major():
             )
 
 
-for i in range(2):
+for i in range(200):
     if i % 20 == 0:
         print("WORKER added")
     generate_worker()
 
 generate_worker_for_major()
 
-for i in range(20000):
+for i in range(10000):
     if i % 20 == 0:
         print("CANDIDATE added")
     generate_candidate()
