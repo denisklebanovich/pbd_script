@@ -10,7 +10,7 @@ fake = Faker()
 URI = "neo4j+s://f53af4cc.databases.neo4j.io"
 AUTH = ("neo4j", "1Ob6tEcO0946BsXr9ggRQmVe6834TS68qJikhcTUWJM")
 
-driver = GraphDatabase.driver(URI, auth=AUTH)
+driver = GraphDatabase.driver(URI)#, auth=AUTH)
 driver.verify_connectivity()
 
 
@@ -275,7 +275,7 @@ for key, value in thresholds.items():
         % (year, value["round_1"], value["round_2"], value["round_3"])
     ))
     Thresholds.append(thresholds_id)
-    get_two_way_relationship(thresholds_id, major_id, "THRESHOLDS", "MAJOR")
+    driver.execute_query(get_two_way_relationship(thresholds_id, major_id, "THRESHOLDS", "MAJORS"))
 
 print("Thresholds added")
 # COURSE
