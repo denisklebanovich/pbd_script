@@ -3,14 +3,13 @@ import random
 from faker import Faker
 from neo4j import GraphDatabase
 from random_pesel import RandomPESEL
-from logging import Logger
 
 fake = Faker()
 
 URI = "neo4j+s://f53af4cc.databases.neo4j.io"
 AUTH = ("neo4j", "1Ob6tEcO0946BsXr9ggRQmVe6834TS68qJikhcTUWJM")
 
-driver = GraphDatabase.driver(URI)#, auth=AUTH)
+driver = GraphDatabase.driver(URI, auth=AUTH)
 driver.verify_connectivity()
 
 
@@ -275,7 +274,7 @@ for key, value in thresholds.items():
         % (year, value["round_1"], value["round_2"], value["round_3"])
     ))
     Thresholds.append(thresholds_id)
-    driver.execute_query(get_two_way_relationship(thresholds_id, major_id, "THRESHOLDS", "MAJORS"))
+    driver.execute_query(get_two_way_relationship(thresholds_id, major_id, "THRESHOLDS", "MAJOR"))
 
 print("Thresholds added")
 # COURSE
@@ -842,7 +841,6 @@ european_nationalities = [
     {"name": "Montenegrin", "studies_fee_free": False},
     {"name": "Dutch", "studies_fee_free": True},
     {"name": "Norwegian", "studies_fee_free": True},
-    {"name": "Polish", "studies_fee_free": True},
     {"name": "Portuguese", "studies_fee_free": True},
     {"name": "Romanian", "studies_fee_free": True},
     {"name": "Russian", "studies_fee_free": False},
@@ -869,6 +867,9 @@ for nationality in european_nationalities:
         % (nationality["name"], nationality["studies_fee_free"])
     )))
 
+Polish_Nationality = extract_id(driver.execute_query(
+        'CREATE (n:Nationalities {name: "%s", studies_fee_free: %s})\nRETURN ID(n)'
+        % ("Polish", True)))
 
 # CANDIDATE
 def choose_nationality():
@@ -1126,7 +1127,7 @@ def generate_candidate_account():
 def get_document_type_with_nationality():
     is_polish = random.choices([True, False], weights=[0.9, 0.1])[0]
     if is_polish:
-        return "id_card", "Polish"
+        return "id_card", Polish_Nationality
     else:
         return "passport", random.choice(Nationalities)
 
@@ -1140,6 +1141,7 @@ def generate_exam_results(candidate_id):
     generate_subject_results(exam_id, exam_type)
     query2 = get_two_way_relationship(candidate_id, exam_id, "CANDIDATE", "EXAM")
     driver.execute_query(query_=query2)
+    driver.execute_query(query_=get_two_way_relationship(exam_id, exam_type, "EXAM", "EXAM_TYPE"))
 
 
 def generate_subject_results(exam_id, exam_type):
@@ -1189,13 +1191,15 @@ def generate_candidate():
     id_document_number = fake.passport_number()
     document_type_id, nationality = get_document_type_with_nationality()
     pesel = None
-    if nationality == "Polish":
+    if nationality == Polish_Nationality:
         pesel = fake_pesel.generate()
     query = 'CREATE (candidate:Candidates {name: "%s", surname: "%s", id_document_number: "%s", pesel: "%s" })\n RETURN ID(candidate)' % (
     name, surname, id_document_number, pesel)
     candidate_id = extract_id(driver.execute_query(query_=query))
 
     generate_recruitment_applications(candidate_id)
+
+    driver.execute_query(query_=get_two_way_relationship(nationality, candidate_id, "NATIONALITY", "CANDIDATE"))
     driver.execute_query(query_=get_two_way_relationship(account_id, candidate_id, "ACCOUNT", "CANDIDATE"))
 
     if nationality != "Polish":
